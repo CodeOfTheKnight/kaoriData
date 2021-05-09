@@ -51,15 +51,33 @@ func NewEpisode() *Episode {
 
 func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
-	//var eps interface{}
+	var eps []*Episode
 
+	//Season info
 	m := structs.Map(a)
+	delete(m, "Episodes")
 	fmt.Println("MAPPA:", m)
 
-	//If it isn't a new document
+	//Episode info
+	eps = a.Episodes
+
+	//Write season info to database
 	_, err := c.Collection("Anime").Doc(a.Id).Set(ctx, m, firestore.MergeAll)
 	if err != nil {
 		return err
+	}
+
+	//Write episodes of sesason to database
+	for i, ep := range eps {
+		epMap := structs.Map(ep)
+		_, err = c.Collection("Anime").
+					Doc(a.Id).
+					Collection("Episodes").
+					Doc(strconv.Itoa(i+1)).
+					Set(ctx, epMap, firestore.MergeAll)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
