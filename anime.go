@@ -68,6 +68,36 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	}
 
 	//Write episodes of sesason to database
+<<<<<<< HEAD
+	for _, ep := range eps {
+
+		//Check languages
+		for lang, _ := range ep.Links {
+			for quality, _ := range ep.Links[lang] {
+				for server, streamLinks := range ep.Links[lang][quality] {
+
+					streamLinksMap := structs.Map(streamLinks)
+
+					_, err = c.Collection("Anime").
+						Doc(a.Id).
+						Collection("Episodes").
+						Doc(ep.Number).
+						Collection("Languages").
+						Doc(string(lang)).
+						Collection("Quality").
+						Doc(string(quality)).
+						Collection("Servers").
+						Doc(server).
+						Set(ctx, streamLinksMap, firestore.MergeAll)
+
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+=======
 	for i, ep := range eps {
 		epMap := structs.Map(ep)
 		_, err = c.Collection("Anime").
@@ -78,6 +108,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+>>>>>>> 0db55058ea76be87c852c9bf639da72948eca863
 	}
 
 	return nil
