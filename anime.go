@@ -68,7 +68,6 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	}
 
 	//Write episodes of sesason to database
-<<<<<<< HEAD
 	for _, ep := range eps {
 
 		//Check languages
@@ -97,18 +96,6 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 			}
 		}
 
-=======
-	for i, ep := range eps {
-		epMap := structs.Map(ep)
-		_, err = c.Collection("Anime").
-					Doc(a.Id).
-					Collection("Episodes").
-					Doc(strconv.Itoa(i+1)).
-					Set(ctx, epMap, firestore.MergeAll)
-		if err != nil {
-			return err
-		}
->>>>>>> 0db55058ea76be87c852c9bf639da72948eca863
 	}
 
 	return nil
@@ -121,6 +108,8 @@ func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 	if err != nil {
 		return errors.New("Error to create JSON: " + err.Error())
 	}
+
+	fmt.Println("DATA:", string(data))
 
 	//Create client
 	tr := &http.Transport{
