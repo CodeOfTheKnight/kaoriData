@@ -28,7 +28,12 @@ type Anime struct {
 type Episode struct {
 	Number string `firestore:"number"`
 	Title string
-	Links map[EpLanguage]map[EpQuality]map[string]StreamLink `firestore:"links"`
+	Links map[EpLanguage]LanguageInfo `firestore:"links"`
+}
+
+type LanguageInfo struct {
+	Modality string
+	Quality map[EpQuality]map[string]StreamLink
 }
 
 type StreamLink struct{
@@ -46,7 +51,7 @@ func NewAnime() *Anime {
 
 func NewEpisode() *Episode {
 	var ep Episode
-	ep.Links = make(map[EpLanguage]map[EpQuality]map[string]StreamLink)
+	ep.Links = make(map[EpLanguage]LanguageInfo)
 	return &ep
 }
 
@@ -73,8 +78,8 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 		//Check languages
 		for lang, _ := range ep.Links {
-			for quality, _ := range ep.Links[lang] {
-				for server, streamLinks := range ep.Links[lang][quality] {
+			for quality, _ := range ep.Links[lang].Quality {
+				for server, streamLinks := range ep.Links[lang].Quality[quality] {
 
 					streamLinksMap := structs.Map(streamLinks)
 
