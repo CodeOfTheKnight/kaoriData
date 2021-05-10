@@ -173,7 +173,7 @@ func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 	return nil
 }
 
-func (sl *StreamLink) GetQuality(link string) error {
+func (sl *StreamLink) GetQuality(link string) (height string, width string, err error) {
 
 	command := fmt.Sprintf("ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,bit_rate -of default=noprint_wrappers=1 %s", link)
 
@@ -186,7 +186,7 @@ func (sl *StreamLink) GetQuality(link string) error {
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		return err
+		return "undefined", "undefined", err
 	}
 
 	lines := strings.Split(out.String(), "\n")
@@ -194,11 +194,9 @@ func (sl *StreamLink) GetQuality(link string) error {
 		fields := strings.Split(line, "=")
 		switch(fields[0]){
 		case "width":
-			num, _ := strconv.Atoi(fields[1])
-			sl.Width = num
+			width = fields[1]
 		case "height":
-			num, _ := strconv.Atoi(fields[1])
-			sl.Height = num
+			height = fields[1]
 		case "duration":
 			num, _ := strconv.ParseFloat(fields[1], 64)
 			sl.Duration = num
@@ -208,5 +206,5 @@ func (sl *StreamLink) GetQuality(link string) error {
 		}
 	}
 
-	return nil
+	return height, width, nil
 }
