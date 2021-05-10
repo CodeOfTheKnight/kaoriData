@@ -33,13 +33,17 @@ type Episode struct {
 
 type LanguageInfo struct {
 	Modality string
-	Quality map[EpQuality]QualityField
+	Quality map[EpQuality]*QualityField
+}
+
+type InfoQuality struct {
+	Width string `firestore:"width"`
+	Height string `firestore:"height"`
 }
 
 type QualityField struct {
-	Width string `firestore:"width"`
-	Height string `firestore:"height"`
-	Servers map[string]StreamLink
+	Info *InfoQuality
+	Servers map[string]*StreamLink
 }
 
 type StreamLink struct{
@@ -111,8 +115,8 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 					Collection("Episodes").
 					Doc(ep.Number).
 					Set(ctx, map[string]string{
-						"Height": ep.Links[lang].Quality[quality].Height,
-						"width": ep.Links[lang].Quality[quality].Width,
+						"Height": ep.Links[lang].Quality[quality].Info.Height,
+						"width": ep.Links[lang].Quality[quality].Info.Width,
 					}, firestore.MergeAll)
 
 				if err != nil {
