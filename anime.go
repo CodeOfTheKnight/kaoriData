@@ -28,22 +28,20 @@ type Anime struct {
 type Episode struct {
 	Number string `firestore:"number"`
 	Title string
-	Links map[EpLanguage]LanguageInfo `firestore:"links"`
+	Videos []*Video
 }
 
-type LanguageInfo struct {
+type Video struct {
+	Language string
 	Modality string
-	Quality map[EpQuality]*QualityField
+	Quality *InfoQuality
+	Server string
+	StreamLink *StreamLink
 }
 
 type InfoQuality struct {
-	Width string `firestore:"width"`
-	Height string `firestore:"height"`
-}
-
-type QualityField struct {
-	Info *InfoQuality
-	Servers map[string]*StreamLink
+	Width int `firestore:"width"`
+	Height int `firestore:"height"`
 }
 
 type StreamLink struct{
@@ -53,30 +51,31 @@ type StreamLink struct{
 }
 
 func NewAnime() *Anime {
-	var a Anime
-	return &a
+	return &Anime{}
 }
 
 func NewEpisode() *Episode {
-	var ep Episode
-	ep.Links = make(map[EpLanguage]LanguageInfo)
-	return &ep
+	return &Episode{}
+}
+
+func NewVideo() *Video {
+	return &Video{}
 }
 
 func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 	var eps []*Episode
 
-	//Season info
-	m := structs.Map(a)
-	delete(m, "Episodes")
-	fmt.Println("MAPPA:", m)
-
 	//Episode info
 	eps = a.Episodes
 
 	//Write season info to database
-	_, err := c.Collection("Anime").Doc(a.Id).Set(ctx, m, firestore.MergeAll)
+	_, err := c.Collection("Anime").
+				Doc(a.Id).
+				Set(ctx, map[string]string{
+					"Name": a.Name,
+				}, firestore.MergeAll)
+
 	if err != nil {
 		return err
 	}
@@ -84,54 +83,66 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	//Write episodes of sesason to database
 	for _, ep := range eps {
 
-		//Check languages
-		for lang, _ := range ep.Links {
-			for quality, _ := range ep.Links[lang].Quality {
-				for server, streamLinks := range ep.Links[lang].Quality[quality].Servers {
+		for _, video :=  range ep.Videos {
 
-					streamLinksMap := structs.Map(streamLinks)
-
-					_, err = c.Collection("Anime").
-						Doc(a.Id).
-						Collection("Episodes").
-						Doc(ep.Number).
-						Collection("Languages").
-						Doc(string(lang)).
-						Collection("Quality").
-						Doc(string(quality)).
-						Collection("Servers").
-						Doc(server).
-						Set(ctx, streamLinksMap, firestore.MergeAll)
-
-					if err != nil {
-						return err
-					}
-
-					fmt.Println(len(ep.Links))
-				}
-
-				//Write quality episode data
-				_, err := c.Collection("Anime").Doc(a.Id).
-					Collection("Episodes").
-					Doc(ep.Number).
-					Set(ctx, map[string]string{
-						"Height": ep.Links[lang].Quality[quality].Info.Height,
-						"width": ep.Links[lang].Quality[quality].Info.Width,
-					}, firestore.MergeAll)
-
-				if err != nil {
-					return err
-				}
+			q := strconv.Itoa(video.Quality.Height) + "p"
+			if q == "0p" {
+				q = "undefined"
 			}
 
-			//Write episode data
-			_, err := c.Collection("Anime").Doc(a.Id).
-												Collection("Episodes").
-												Doc(ep.Number).
-												Set(ctx, map[string]string{"Title": ep.Title}, firestore.MergeAll)
+			//Send streamLinks and create all collections
+			_, err = c.Collection("Anime").
+				Doc(a.Id).
+				Collection("Episodes").
+				Doc(ep.Number).
+				Collection("Languages").
+				Doc(video.Language).
+				Collection("Quality").
+				Doc(q).
+				Collection("Servers").
+				Doc(video.Server).
+				Set(ctx, structs.Map(video.StreamLink), firestore.MergeAll)
+
 			if err != nil {
 				return err
 			}
+
+			//Send language info
+			_, err = c.Collection("Anime").
+				Doc(a.Id).
+				Collection("Episodes").
+				Doc(ep.Number).
+				Collection("Languages").
+				Doc(video.Language).Set(ctx, map[string]string{
+					"Modality": video.Modality,
+				}, firestore.MergeAll)
+
+			if err != nil {
+				return err
+			}
+
+			//Send quality info
+			_, err = c.Collection("Anime").
+				Doc(a.Id).
+				Collection("Episodes").
+				Doc(ep.Number).
+				Collection("Languages").
+				Doc(video.Language).
+				Set(ctx, structs.Map(video.Quality), firestore.MergeAll)
+
+		}
+
+		//Send episode data
+		_, err = c.Collection("Anime").
+										Doc(a.Id).
+										Collection("Episodes").
+										Doc(ep.Number).
+										Set(ctx, map[string]string{
+											"Title": ep.Title,
+										}, firestore.MergeAll)
+
+		if err != nil {
+			return err
 		}
 
 	}
@@ -177,7 +188,7 @@ func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 	return nil
 }
 
-func (sl *StreamLink) GetQuality(link string) (height string, width string, err error) {
+func (v *Video) GetQuality(link string)  error {
 
 	command := fmt.Sprintf("ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,bit_rate -of default=noprint_wrappers=1 %s", link)
 
@@ -187,10 +198,12 @@ func (sl *StreamLink) GetQuality(link string) (height string, width string, err 
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		return "undefined", "undefined", err
+		v.Quality.Height = 0
+		v.Quality.Width = 0
+		return err
 	}
 
 	lines := strings.Split(out.String(), "\n")
@@ -198,17 +211,19 @@ func (sl *StreamLink) GetQuality(link string) (height string, width string, err 
 		fields := strings.Split(line, "=")
 		switch(fields[0]){
 		case "width":
-			width = fields[1]
+			num, _ := strconv.Atoi(fields[1])
+			v.Quality.Width = num
 		case "height":
-			height = fields[1]
+			num, _ := strconv.Atoi(fields[1])
+			v.Quality.Height = num
 		case "duration":
 			num, _ := strconv.ParseFloat(fields[1], 64)
-			sl.Duration = num
+			v.StreamLink.Duration = num
 		case "bit_rate":
 			num, _ := strconv.Atoi(fields[1])
-			sl.Bitrate = num
+			v.StreamLink.Bitrate = num
 		}
 	}
 
-	return height, width, nil
+	return nil
 }
