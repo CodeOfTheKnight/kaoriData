@@ -27,6 +27,7 @@ type Anime struct {
 
 type Episode struct {
 	Number string `firestore:"number"`
+	Title string
 	Links map[EpLanguage]map[EpQuality]map[string]StreamLink `firestore:"links"`
 }
 
@@ -70,6 +71,11 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	//Write episodes of sesason to database
 	for _, ep := range eps {
 
+<<<<<<< HEAD
+		epMap := structs.Map(ep)
+
+=======
+>>>>>>> 364da7e55cb24d67bae8cfbc7f69a3a211f8d7b7
 		//Check languages
 		for lang, _ := range ep.Links {
 			for quality, _ := range ep.Links[lang] {
@@ -92,8 +98,21 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 					if err != nil {
 						return err
 					}
+<<<<<<< HEAD
+
+					fmt.Println(len(ep.Links))
 				}
 			}
+
+			//Write episode data
+			_, err := c.Collection("Anime").Doc(ep.Number).Set(ctx, epMap["Title"])
+			if err != nil {
+				return err
+			}
+=======
+				}
+			}
+>>>>>>> 364da7e55cb24d67bae8cfbc7f69a3a211f8d7b7
 		}
 
 	}
