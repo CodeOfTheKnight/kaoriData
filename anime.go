@@ -33,13 +33,17 @@ type Episode struct {
 
 type LanguageInfo struct {
 	Modality string
-	Quality map[EpQuality]map[string]StreamLink
+	Quality map[EpQuality]QualityField
+}
+
+type QualityField struct {
+	Width string `firestore:"width"`
+	Height string `firestore:"height"`
+	Servers map[string]StreamLink
 }
 
 type StreamLink struct{
 	Link string `firestore:"link"`
-	Width int `firestore:"width"`
-	Height int `firestore:"height"`
 	Duration float64 `firestore:"duration"`
 	Bitrate int `firestore:"bitrate"`
 }
@@ -79,7 +83,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 		//Check languages
 		for lang, _ := range ep.Links {
 			for quality, _ := range ep.Links[lang].Quality {
-				for server, streamLinks := range ep.Links[lang].Quality[quality] {
+				for server, streamLinks := range ep.Links[lang].Quality[quality].Servers {
 
 					streamLinksMap := structs.Map(streamLinks)
 
@@ -100,6 +104,19 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 					}
 
 					fmt.Println(len(ep.Links))
+				}
+
+				//Write quality episode data
+				_, err := c.Collection("Anime").Doc(a.Id).
+					Collection("Episodes").
+					Doc(ep.Number).
+					Set(ctx, map[string]string{
+						"Height": ep.Links[lang].Quality[quality].Height,
+						"width": ep.Links[lang].Quality[quality].Width,
+					}, firestore.MergeAll)
+
+				if err != nil {
+					return err
 				}
 			}
 
