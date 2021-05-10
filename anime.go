@@ -71,8 +71,6 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	//Write episodes of sesason to database
 	for _, ep := range eps {
 
-		epMap := structs.Map(ep)
-
 		//Check languages
 		for lang, _ := range ep.Links {
 			for quality, _ := range ep.Links[lang] {
@@ -101,7 +99,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 			}
 
 			//Write episode data
-			_, err := c.Collection("Anime").Doc(ep.Number).Set(ctx, epMap["Title"])
+			_, err := c.Collection("Anime").Doc(ep.Number).Set(ctx, map[string]string{"Title": ep.Title})
 			if err != nil {
 				return err
 			}
