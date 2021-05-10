@@ -99,7 +99,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 			}
 
 			//Write episode data
-			_, err := c.Collection("Anime").Doc(ep.Number).Set(ctx, map[string]string{"Title": ep.Title})
+			_, err := c.Collection("Anime").Doc(ep.Number).Set(ctx, map[string]string{"Title": ep.Title}, firestore.MergeAll)
 			if err != nil {
 				return err
 			}
