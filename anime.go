@@ -16,9 +16,6 @@ import (
 	"syscall"
 )
 
-type EpLanguage string
-type EpQuality string
-
 type Anime struct {
 	Id string `firestore:"-"`
 	Name string `firestore:"name"`
