@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fatih/structs"
+	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -180,6 +182,27 @@ func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 
 	if resp.StatusCode != 200 {
 		return errors.New("Error to send data, status code: " + resp.Status)
+	}
+
+	return nil
+}
+
+func (a *Anime) AppendFile(filePath string) error {
+
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	defer file.Close()
+
+	data, err := json.MarshalIndent(a, " ", "\t")
+	if err != nil {
+		return errors.New("Error to create JSON: " + err.Error())
+	}
+
+	_, err = file.Write([]byte(string(data) + ","))
+	if err != nil {
+		return err
 	}
 
 	return nil
