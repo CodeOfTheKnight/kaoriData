@@ -58,7 +58,8 @@ func NewEpisode() *Episode {
 }
 
 func NewVideo() *Video {
-	return &Video{}
+	var sl StreamLink
+	return &Video{StreamLink: &sl}
 }
 
 func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
