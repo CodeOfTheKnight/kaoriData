@@ -223,6 +223,8 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
 		}
 
+		fmt.Println("LANG:", docLanguage.Ref.ID)
+
 		iterEpisode := c.Collection("Anime").
 			Doc(a.Id).
 			Collection("Languages").
@@ -248,6 +250,8 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 				return err
 			}
 
+			fmt.Println("EP:", docEpisode.Ref.ID)
+
 			ep.Number = docEpisode.Ref.ID
 
 			//Get quality
@@ -270,6 +274,8 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 				if err != nil {
 					return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
 				}
+
+				fmt.Println("Quality:", docQuality.Ref.ID)
 
 				//Get servers
 				iterServers := c.Collection("Anime").
@@ -302,6 +308,8 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 							return err
 						}
 
+						fmt.Println("Server:", docServers.Ref.ID)
+
 						v.Modality = docLanguage.Data()["Modality"].(string)
 						v.Language = docLanguage.Ref.ID
 						iq.Width = int(docQuality.Data()["Width"].(int64))
@@ -310,9 +318,13 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 						v.Server = docServers.Ref.ID
 						v.StreamLink = &stream
 
+						fmt.Println("VIDEO:", v)
+
 						ep.Videos = append(ep.Videos, &v)
 					}
 				}
+
+				fmt.Println("EPISODIO:", ep)
 
 				a.Episodes = append(a.Episodes, &ep)
 			}
