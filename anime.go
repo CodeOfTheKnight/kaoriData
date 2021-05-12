@@ -129,6 +129,8 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 				Doc(ep.Number).
 				Collection("Languages").
 				Doc(video.Language).
+				Collection("Quality").
+				Doc(q).
 				Set(ctx, structs.Map(video.Quality), firestore.MergeAll)
 
 		}
