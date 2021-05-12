@@ -222,7 +222,7 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
 		}
-		
+
 		iterEpisode := c.Collection("Anime").
 			Doc(a.Id).
 			Collection("Languages").
