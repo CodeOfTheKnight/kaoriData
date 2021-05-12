@@ -153,6 +153,46 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	return nil
 }
 
+func (a *Anime) GetAnimeFromDb(c *firestore.Client, ctx context.Context) error {
+
+	if a.Id == "" {
+		return errors.New("Id of anime not setted")
+	}
+
+	err := a.GetAnimeInfoFromDb(c, ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Anime) GetAnimeInfoFromDb(c *firestore.Client, ctx context.Context) error {
+
+	if a.Id == "" {
+		return errors.New("Id of anime not setted.")
+	}
+
+	//Get anime season info
+	data, err := c.
+		Collection("Anime").
+		Doc(a.Id).
+		Get(ctx)
+
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error to get anime %s from database: %s", a.Id, err.Error()))
+	}
+
+	err = data.DataTo(a)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error to convert anime %s to anime struct: %s", a.Id, err.Error()))
+	}
+
+	fmt.Println("ANIME:", a)
+
+	return nil
+}
+
 func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 
 	//Create JSON
