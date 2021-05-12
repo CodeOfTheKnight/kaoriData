@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fatih/structs"
-	"google.golang.org/api/iterator"
 	"log"
 	"net/http"
 	"os"
@@ -46,6 +45,7 @@ type InfoQuality struct {
 
 type StreamLink struct{
 	Link string `firestore:"link"`
+	Fansub string `firestore:"fansub"`
 	Duration float64 `firestore:"duration"`
 	Bitrate int `firestore:"bitrate"`
 }
@@ -154,6 +154,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	return nil
 }
 
+/*
 func (a *Anime) GetAnimeFromDb(c *firestore.Client, ctx context.Context) error {
 
 	if a.Id == "" {
@@ -226,11 +227,75 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 
 		ep.Number = doc.Ref.ID
 
-		fmt.Println(ep)
+		//Get languages
+		iter2 := c.Collection("Anime").
+				Doc(a.Id).
+				Collection("Episode").
+				Doc(ep.Number).
+				Collection("Languages").
+				Documents(ctx)
+		defer iter2.Stop()
+
+		for {
+
+			doc, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+			}
+
+
+
+		}
+
+
+
 	}
 
 	return nil
 }
+
+func (ep *Episode) getVideosInfoFromDb(c *firestore.Client, ctx context.Context, id string) error {
+
+	if ep.Number == "" {
+		return errors.New("Numeber of episode not setted")
+	}
+
+	iter := c.Collection("Anime").
+		Doc(id).
+		Collection("Episodes").
+		Doc(ep.Number).
+		Collection("Quality").
+		Documents(ctx)
+	defer iter.Stop()
+
+	for {
+
+		var v Video
+		var iq InfoQuality
+
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return errors.New(fmt.Sprintf("Error to get video with anime id %s: %s", id, err.Error()))
+		}
+
+		err = doc.DataTo(&v)
+		if err != nil {
+			return err
+		}
+
+
+	}
+
+	return nil
+}
+*/
+
 
 func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 
