@@ -301,8 +301,8 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 
 					v.Modality = docLanguage.Data()["Modality"].(string)
 					v.Language = docLanguage.Ref.ID
-					iq.Width = docQuality.Data()["Width"].(int)
-					iq.Width = docQuality.Data()["Height"].(int)
+					iq.Width = int(docQuality.Data()["Width"].(int64))
+					iq.Width = int(docQuality.Data()["Height"].(int64))
 					v.Quality = &iq
 					v.Server = docServers.Ref.ID
 					v.StreamLink = &stream
