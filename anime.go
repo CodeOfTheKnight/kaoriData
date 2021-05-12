@@ -206,17 +206,16 @@ func (a *Anime) GetAnimeInfoFromDb(c *firestore.Client, ctx context.Context) err
 
 func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) error {
 
-	iterEpisode := c.Collection("Anime").
-					Doc(a.Id).
-					Collection("Episodes").
-					Documents(ctx)
-	defer iterEpisode.Stop()
+	//Take all languages
+	iterLang := c.Collection("Anime").
+				  Doc(a.Id).
+				  Collection("Languages").
+				  Documents(ctx)
+	defer iterLang.Stop()
 
 	for {
 
-		var ep Episode
-
-		docEpisode, err := iterEpisode.Next()
+		docLanguage, err := iterLang.Next()
 		if err == iterator.Done {
 			break
 		}
@@ -224,42 +223,42 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
 		}
 
-		err = docEpisode.DataTo(&ep)
-		if err != nil {
-			return err
-		}
-
-		ep.Number = docEpisode.Ref.ID
-
-		//Get languages
-		iterLanguage := c.Collection("Anime").
-				Doc(a.Id).
-				Collection("Episodes").
-				Doc(ep.Number).
-				Collection("Languages").
-				Documents(ctx)
-		defer iterLanguage.Stop()
+		iterEpisode := c.Collection("Anime").
+			Doc(a.Id).
+			Collection("Languages").
+			Doc(docLanguage.Ref.ID).
+			Collection("Episodes").
+			Documents(ctx)
+		defer iterEpisode.Stop()
 
 		for {
 
+			var ep Episode
 
-			docLanguage, err := iterLanguage.Next()
+			docEpisode, err := iterEpisode.Next()
 			if err == iterator.Done {
 				break
 			}
 			if err != nil {
-				return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+				return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
 			}
+
+			err = docEpisode.DataTo(&ep)
+			if err != nil {
+				return err
+			}
+
+			ep.Number = docEpisode.Ref.ID
 
 			//Get quality
 			iterQuality := c.Collection("Anime").
-							 Doc(a.Id).
-							 Collection("Episodes").
-							 Doc(ep.Number).
-							 Collection("Languages").
-							 Doc(docLanguage.Ref.ID).
-				             Collection("Quality").
-							 Documents(ctx)
+					Doc(a.Id).
+					Collection("Languages").
+					Doc(docLanguage.Ref.ID).
+					Collection("Episodes").
+					Doc(ep.Number).
+					Collection("Quality").
+					Documents(ctx)
 			defer iterQuality.Stop()
 
 			for {
@@ -274,54 +273,52 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 
 				//Get servers
 				iterServers := c.Collection("Anime").
-								 Doc(a.Id).
-								 Collection("Episodes").
-								 Doc(ep.Number).
-								 Collection("Languages").
-								 Doc(docLanguage.Ref.ID).
-								 Collection("Quality").
-								 Doc(docQuality.Ref.ID).
-								 Collection("Servers").
-								 Documents(ctx)
+						Doc(a.Id).
+						Collection("Languages").
+						Doc(docLanguage.Ref.ID).
+						Collection("Episodes").
+						Doc(ep.Number).
+						Collection("Quality").
+						Doc(docQuality.Ref.ID).
+						Collection("Servers").
+						Documents(ctx)
 
-				for {
+					for {
 
-					var v Video
-					var iq InfoQuality
-					var stream StreamLink
+						var v Video
+						var iq InfoQuality
+						var stream StreamLink
 
-					docServers, err := iterServers.Next()
-					if err == iterator.Done {
-						break
+						docServers, err := iterServers.Next()
+						if err == iterator.Done {
+							break
+						}
+						if err != nil {
+							return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+						}
+
+						err = docServers.DataTo(&stream)
+						if err != nil {
+							return err
+						}
+
+						v.Modality = docLanguage.Data()["Modality"].(string)
+						v.Language = docLanguage.Ref.ID
+						iq.Width = int(docQuality.Data()["Width"].(int64))
+						iq.Width = int(docQuality.Data()["Height"].(int64))
+						v.Quality = &iq
+						v.Server = docServers.Ref.ID
+						v.StreamLink = &stream
+
+						ep.Videos = append(ep.Videos, &v)
 					}
-					if err != nil {
-						return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
-					}
-
-					err = docServers.DataTo(&stream)
-					if err != nil {
-						return err
-					}
-
-					v.Modality = docLanguage.Data()["Modality"].(string)
-					v.Language = docLanguage.Ref.ID
-					iq.Width = int(docQuality.Data()["Width"].(int64))
-					iq.Width = int(docQuality.Data()["Height"].(int64))
-					v.Quality = &iq
-					v.Server = docServers.Ref.ID
-					v.StreamLink = &stream
-
-					ep.Videos = append(ep.Videos, &v)
 				}
+
+				a.Episodes = append(a.Episodes, &ep)
 			}
-
-
 		}
 
-		a.Episodes = append(a.Episodes, &ep)
-	}
-
-	return nil
+		return nil
 }
 
 /*
