@@ -68,6 +68,7 @@ func NewVideo() *Video {
 func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 	var eps []*Episode
+	var l string
 
 	//Episode info
 	eps = a.Episodes
@@ -88,6 +89,8 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 		for _, video :=  range ep.Videos {
 
+			l = video.Language
+
 			q := strconv.Itoa(video.Quality.Height) + "p"
 			if q == "0p" {
 				q = "undefined"
@@ -96,10 +99,10 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 			//Send streamLinks and create all collections
 			_, err = c.Collection("Anime").
 				Doc(a.Id).
-				Collection("Episodes").
-				Doc(ep.Number).
 				Collection("Languages").
 				Doc(video.Language).
+				Collection("Episodes").
+				Doc(ep.Number).
 				Collection("Quality").
 				Doc(q).
 				Collection("Servers").
@@ -113,12 +116,11 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 			//Send language info
 			_, err = c.Collection("Anime").
 				Doc(a.Id).
-				Collection("Episodes").
-				Doc(ep.Number).
 				Collection("Languages").
 				Doc(video.Language).Set(ctx, map[string]string{
-					"Modality": video.Modality,
-				}, firestore.MergeAll)
+				"Modality": video.Modality,
+			}, firestore.MergeAll)
+
 
 			if err != nil {
 				return err
@@ -127,10 +129,10 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 			//Send quality info
 			_, err = c.Collection("Anime").
 				Doc(a.Id).
-				Collection("Episodes").
-				Doc(ep.Number).
 				Collection("Languages").
 				Doc(video.Language).
+				Collection("Episodes").
+				Doc(ep.Number).
 				Collection("Quality").
 				Doc(q).
 				Set(ctx, structs.Map(video.Quality), firestore.MergeAll)
@@ -140,6 +142,8 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 		//Send episode data
 		_, err = c.Collection("Anime").
 										Doc(a.Id).
+										Collection("Languages").
+										Doc(l).
 										Collection("Episodes").
 										Doc(ep.Number).
 										Set(ctx, map[string]string{
