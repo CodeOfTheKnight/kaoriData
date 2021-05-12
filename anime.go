@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fatih/structs"
+	"google.golang.org/api/iterator"
 	"log"
 	"net/http"
 	"os"
@@ -164,6 +165,11 @@ func (a *Anime) GetAnimeFromDb(c *firestore.Client, ctx context.Context) error {
 		return err
 	}
 
+	err = a.GetAnimeEpisodeDb(c, ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -189,6 +195,28 @@ func (a *Anime) GetAnimeInfoFromDb(c *firestore.Client, ctx context.Context) err
 	}
 
 	fmt.Println("ANIME:", a)
+
+	return nil
+}
+
+func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) error {
+
+	iter := c.Collection("Anime").
+					Doc(a.Id).
+					Collection("Episodes").
+					Documents(ctx)
+	defer iter.Stop()
+
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
+		}
+		fmt.Println(doc.Data())
+	}
 
 	return nil
 }
