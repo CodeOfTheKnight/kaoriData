@@ -348,7 +348,7 @@ func (a *Anime) AppendFile(filePath string) error {
 		return errors.New("Error to create JSON: " + err.Error())
 	}
 
-	_, err = file.Write([]byte(string(data) + ","))
+	_, err = file.Write([]byte(string(data) + ",\n"))
 	if err != nil {
 		return err
 	}
