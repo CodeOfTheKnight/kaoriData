@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fatih/structs"
+	"google.golang.org/api/iterator"
 	"log"
 	"net/http"
 	"os"
@@ -154,7 +155,6 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	return nil
 }
 
-/*
 func (a *Anime) GetAnimeFromDb(c *firestore.Client, ctx context.Context) error {
 
 	if a.Id == "" {
@@ -202,17 +202,17 @@ func (a *Anime) GetAnimeInfoFromDb(c *firestore.Client, ctx context.Context) err
 
 func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) error {
 
-	iter := c.Collection("Anime").
+	iterEpisode := c.Collection("Anime").
 					Doc(a.Id).
 					Collection("Episodes").
 					Documents(ctx)
-	defer iter.Stop()
+	defer iterEpisode.Stop()
 
 	for {
 
 		var ep Episode
 
-		doc, err := iter.Next()
+		docEpisode, err := iterEpisode.Next()
 		if err == iterator.Done {
 			break
 		}
@@ -220,25 +220,26 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
 		}
 
-		err = doc.DataTo(&ep)
+		err = docEpisode.DataTo(&ep)
 		if err != nil {
 			return err
 		}
 
-		ep.Number = doc.Ref.ID
+		ep.Number = docEpisode.Ref.ID
 
 		//Get languages
-		iter2 := c.Collection("Anime").
+		iterLanguage := c.Collection("Anime").
 				Doc(a.Id).
 				Collection("Episode").
 				Doc(ep.Number).
 				Collection("Languages").
 				Documents(ctx)
-		defer iter2.Stop()
+		defer iterLanguage.Stop()
 
 		for {
 
-			doc, err := iter.Next()
+
+			docLanguage, err := iterLanguage.Next()
 			if err == iterator.Done {
 				break
 			}
@@ -246,12 +247,74 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 				return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
 			}
 
+			//Get quality
+			iterQuality := c.Collection("Anime").
+							 Doc(a.Id).
+							 Collection("Episodes").
+							 Doc(ep.Number).
+							 Collection("Languages").
+							 Doc(docLanguage.Ref.ID).
+				             Collection("Quality").
+							 Documents(ctx)
+			defer iterQuality.Stop()
+
+			for {
+
+				docQuality, err := iterQuality.Next()
+				if err == iterator.Done {
+					break
+				}
+				if err != nil {
+					return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+				}
+
+				//Get servers
+				iterServers := c.Collection("Anime").
+								 Doc(a.Id).
+								 Collection("Episodes").
+								 Doc(ep.Number).
+								 Collection("Languages").
+								 Doc(docLanguage.Ref.ID).
+								 Collection("Quality").
+								 Doc(docQuality.Ref.ID).
+								 Collection("Servers").
+								 Documents(ctx)
+
+				for {
+
+					var v Video
+					var iq InfoQuality
+					var stream StreamLink
+
+					docServers, err := iterServers.Next()
+					if err == iterator.Done {
+						break
+					}
+					if err != nil {
+						return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+					}
+
+					err = docServers.DataTo(&stream)
+					if err != nil {
+						return err
+					}
+
+					v.Modality = docLanguage.Data()["Modality"].(string)
+					v.Language = docLanguage.Ref.ID
+					iq.Width = docQuality.Data()["Width"].(int)
+					iq.Width = docQuality.Data()["Height"].(int)
+					v.Quality = &iq
+					v.Server = docServers.Ref.ID
+					v.StreamLink = &stream
+
+					ep.Videos = append(ep.Videos, &v)
+				}
+			}
 
 
 		}
 
-
-
+		a.Episodes = append(a.Episodes, &ep)
 	}
 
 	return nil
@@ -294,8 +357,6 @@ func (ep *Episode) getVideosInfoFromDb(c *firestore.Client, ctx context.Context,
 
 	return nil
 }
-*/
-
 
 func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 
