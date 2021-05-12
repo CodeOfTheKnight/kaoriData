@@ -208,6 +208,9 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 	defer iter.Stop()
 
 	for {
+
+		var ep Episode
+
 		doc, err := iter.Next()
 		if err == iterator.Done {
 			break
@@ -215,8 +218,15 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
 		}
-		fmt.Println(doc.Data())
-		fmt.Println(doc.Ref)
+
+		err = doc.DataTo(&ep)
+		if err != nil {
+			return err
+		}
+
+		ep.Number = doc.Ref.ID
+
+		fmt.Println(ep)
 	}
 
 	return nil
