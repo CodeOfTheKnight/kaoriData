@@ -230,7 +230,7 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 		//Get languages
 		iterLanguage := c.Collection("Anime").
 				Doc(a.Id).
-				Collection("Episode").
+				Collection("Episodes").
 				Doc(ep.Number).
 				Collection("Languages").
 				Documents(ctx)
