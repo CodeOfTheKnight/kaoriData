@@ -320,6 +320,7 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 	return nil
 }
 
+/*
 func (ep *Episode) getVideosInfoFromDb(c *firestore.Client, ctx context.Context, id string) error {
 
 	if ep.Number == "" {
@@ -357,6 +358,7 @@ func (ep *Episode) getVideosInfoFromDb(c *firestore.Client, ctx context.Context,
 
 	return nil
 }
+*/
 
 func (a *Anime) SendToKaori(kaoriUrl, token string) error {
 
