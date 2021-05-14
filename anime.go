@@ -4,15 +4,10 @@ import (
 	"bytes"
 	"cloud.google.com/go/firestore"
 	"context"
-	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/fatih/structs"
 	"google.golang.org/api/iterator"
-	"log"
-	"net/http"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -333,103 +328,12 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 		return nil
 }
 
-/*
-func (ep *Episode) getVideosInfoFromDb(c *firestore.Client, ctx context.Context, id string) error {
-
-	if ep.Number == "" {
-		return errors.New("Numeber of episode not setted")
-	}
-
-	iter := c.Collection("Anime").
-		Doc(id).
-		Collection("Episodes").
-		Doc(ep.Number).
-		Collection("Quality").
-		Documents(ctx)
-	defer iter.Stop()
-
-	for {
-
-		var v Video
-		var iq InfoQuality
-
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return errors.New(fmt.Sprintf("Error to get video with anime id %s: %s", id, err.Error()))
-		}
-
-		err = doc.DataTo(&v)
-		if err != nil {
-			return err
-		}
-
-
-	}
-
-	return nil
-}
-*/
-
 func (a *Anime) SendToKaori(kaoriUrl, token string) error {
-
-	//Create JSON
-	data, err := json.MarshalIndent(a, " ", "\t")
-	if err != nil {
-		return errors.New("Error to create JSON: " + err.Error())
-	}
-
-	fmt.Println("DATA:", string(data))
-
-	//Create client
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	client := &http.Client{Transport: tr}
-
-	//Create request
-	req, err := http.NewRequest("POST", kaoriUrl, bytes.NewReader(data))
-	if err != nil {
-		return errors.New("Error to create request: " + err.Error())
-	}
-	req.Header.Set("Authorization", "Bearer " + token)
-
-	//Do request
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return errors.New("Error to send data, status code: " + resp.Status)
-	}
-
-	return nil
+	return sendToKaori(a, kaoriUrl, token)
 }
 
 func (a *Anime) AppendFile(filePath string) error {
-
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Println(err)
-	}
-	defer file.Close()
-
-	data, err := json.MarshalIndent(a, " ", "\t")
-	if err != nil {
-		return errors.New("Error to create JSON: " + err.Error())
-	}
-
-	_, err = file.Write([]byte(string(data) + ",\n"))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return appendFile(a, filePath)
 }
 
 func (v *Video) GetQuality(link string)  error {
