@@ -43,7 +43,7 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 			//Send language data
 			_, err := mangaDoc.Collection("Languages").
 				Doc(p.Language).Set(ctx, map[string]string{
-					"fill": "",
+					"Fill": "",
 			}, firestore.MergeAll)
 			if err != nil {
 				return err
@@ -68,8 +68,8 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 
 			_, err = chapterDoc.Collection("Pages").
 				Doc(p.Number).Set(ctx, map[string]string{
-					"fill": "",
-			})
+					"Fill": "",
+			}, firestore.MergeAll)
 			if err != nil {
 				return err
 			}
