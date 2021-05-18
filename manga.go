@@ -13,17 +13,8 @@ type Manga struct {
 	Chapters []*Chapter
 }
 
-type Chapter struct {
-	Number string
-	Title string
-	Pages []*Page
-}
-
-type Page struct {
-	Number string
-	Language string
-	Server string
-	Link string
+func NewManga() *Manga {
+	return &Manga{}
 }
 
 func (m *Manga) SendToKaori(kaoriServer, token string) error {
