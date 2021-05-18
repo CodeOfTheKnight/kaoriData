@@ -40,6 +40,15 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 			mc := structs.Map(ch)
 			delete(mc, "Pages")
 
+			//Send language data
+			_, err := mangaDoc.Collection("Languages").
+				Doc(p.Language).Set(ctx, map[string]string{
+					"fill": "",
+			}, firestore.MergeAll)
+			if err != nil {
+				return err
+			}
+
 			//Send chapters data
 			chapterDoc := mangaDoc.Collection("Languages").
 										Doc(p.Language).
@@ -56,6 +65,14 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 									Doc(p.Number).
 									Collection("Servers").
 									Doc(p.Server)
+
+			_, err := chapterDoc.Collection("Pages").
+				Doc(p.Number).Set(ctx, map[string]string{
+					"fill": "",
+			})
+			if err != nil {
+				return err
+			}
 
 			_, err = pagesDoc.Set(ctx, map[string]string{
 				"Link": p.Link,
