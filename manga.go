@@ -66,7 +66,7 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 									Collection("Servers").
 									Doc(p.Server)
 
-			_, err := chapterDoc.Collection("Pages").
+			_, err = chapterDoc.Collection("Pages").
 				Doc(p.Number).Set(ctx, map[string]string{
 					"fill": "",
 			})
