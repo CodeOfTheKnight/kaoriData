@@ -3,15 +3,19 @@ package kaoriData
 import (
 	"cloud.google.com/go/firestore"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/fatih/structs"
+	_ "github.com/go-sql-driver/mysql"
 	"google.golang.org/api/iterator"
+	"log"
 	"strconv"
+	"time"
 )
 
 type Anime struct {
-	Id string `firestore:"-"`
+	Id int `firestore:"-"`
 	Name string `firestore:"name"`
 	Episodes []*Episode `firestore:"episodes"`
 }
@@ -46,7 +50,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 	//Write season info to database
 	_, err := c.Collection("Anime").
-				Doc(a.Id).
+				Doc(strconv.Itoa(a.Id)).
 				Set(ctx, map[string]string{
 					"Name": a.Name,
 				}, firestore.MergeAll)
@@ -69,11 +73,11 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 			//Send streamLinks and create all collections
 			_, err = c.Collection("Anime").
-				Doc(a.Id).
+				Doc(strconv.Itoa(a.Id)).
 				Collection("Languages").
 				Doc(video.Language).
 				Collection("Episodes").
-				Doc(ep.Number).
+				Doc(strconv.Itoa(ep.Number)).
 				Collection("Quality").
 				Doc(q).
 				Collection("Servers").
@@ -86,7 +90,7 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 			//Send language info
 			_, err = c.Collection("Anime").
-				Doc(a.Id).
+				Doc(strconv.Itoa(a.Id)).
 				Collection("Languages").
 				Doc(video.Language).Set(ctx, map[string]string{
 				"Modality": video.Modality,
@@ -99,11 +103,11 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 			//Send quality info
 			_, err = c.Collection("Anime").
-				Doc(a.Id).
+				Doc(strconv.Itoa(a.Id)).
 				Collection("Languages").
 				Doc(video.Language).
 				Collection("Episodes").
-				Doc(ep.Number).
+				Doc(strconv.Itoa(ep.Number)).
 				Collection("Quality").
 				Doc(q).
 				Set(ctx, structs.Map(video.Quality), firestore.MergeAll)
@@ -112,11 +116,11 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 
 		//Send episode data
 		_, err = c.Collection("Anime").
-										Doc(a.Id).
+										Doc(strconv.Itoa(a.Id)).
 										Collection("Languages").
 										Doc(l).
 										Collection("Episodes").
-										Doc(ep.Number).
+										Doc(strconv.Itoa(ep.Number)).
 										Set(ctx, map[string]string{
 											"Title": ep.Title,
 										}, firestore.MergeAll)
@@ -130,9 +134,50 @@ func (a *Anime) SendToDb(c *firestore.Client, ctx context.Context) error {
 	return nil
 }
 
+func (a *Anime) SendToDbRel(cl *sql.DB) error {
+
+	//Insert AnimeInfo
+	query := "INSERT INTO Anime(ID, Name) VALUES (?, ?)"
+	ctx, cancelfunc := context.WithTimeout(context.Background(), 5 *time.Second)
+	defer cancelfunc()
+
+	stmt, err := cl.PrepareContext(ctx, query)
+	if err != nil {
+		log.Printf("Error %s when preparing SQL statement", err)
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, a.Id, a.Name)
+	if err != nil {
+		log.Printf("Error %s when inserting row into products table", err)
+		return err
+	}
+
+	for _, episode := range a.Episodes {
+
+		idEp, err := episode.SendToDbRel(cl, a.Id)
+		if err != nil {
+			return err
+		}
+
+		for _, video := range episode.Videos {
+
+			_, err := video.SendToDbRel(cl, idEp)
+			if err != nil {
+				return err
+			}
+
+		}
+
+	}
+
+	return nil
+}
+
 func (a *Anime) GetAnimeFromDb(c *firestore.Client, ctx context.Context) error {
 
-	if a.Id == "" {
+	if a.Id == 0 {
 		return errors.New("Id of anime not setted")
 	}
 
@@ -151,23 +196,23 @@ func (a *Anime) GetAnimeFromDb(c *firestore.Client, ctx context.Context) error {
 
 func (a *Anime) GetAnimeInfoFromDb(c *firestore.Client, ctx context.Context) error {
 
-	if a.Id == "" {
+	if a.Id == 0 {
 		return errors.New("Id of anime not setted.")
 	}
 
 	//Get anime season info
 	data, err := c.
 		Collection("Anime").
-		Doc(a.Id).
+		Doc(strconv.Itoa(a.Id)).
 		Get(ctx)
 
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error to get anime %s from database: %s", a.Id, err.Error()))
+		return errors.New(fmt.Sprintf("Error to get anime %d from database: %s", a.Id, err.Error()))
 	}
 
 	err = data.DataTo(a)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error to convert anime %s to anime struct: %s", a.Id, err.Error()))
+		return errors.New(fmt.Sprintf("Error to convert anime %d to anime struct: %s", a.Id, err.Error()))
 	}
 
 	fmt.Println("ANIME:", a)
@@ -179,7 +224,7 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 
 	//Take all languages
 	iterLang := c.Collection("Anime").
-				  Doc(a.Id).
+				  Doc(strconv.Itoa(a.Id)).
 				  Collection("Languages").
 				  Documents(ctx)
 	defer iterLang.Stop()
@@ -191,13 +236,13 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 			break
 		}
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
+			return errors.New(fmt.Sprintf("Error to get episode with anime id %d: %s", a.Id, err.Error()))
 		}
 
 		fmt.Println("LANG:", docLanguage.Ref.ID)
 
 		iterEpisode := c.Collection("Anime").
-			Doc(a.Id).
+			Doc(strconv.Itoa(a.Id)).
 			Collection("Languages").
 			Doc(docLanguage.Ref.ID).
 			Collection("Episodes").
@@ -213,7 +258,7 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 				break
 			}
 			if err != nil {
-				return errors.New(fmt.Sprintf("Error to get episode with anime id %s: %s", a.Id, err.Error()))
+				return errors.New(fmt.Sprintf("Error to get episode with anime id %d: %s", a.Id, err.Error()))
 			}
 
 			err = docEpisode.DataTo(&ep)
@@ -223,15 +268,18 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 
 			fmt.Println("EP:", docEpisode.Ref.ID)
 
-			ep.Number = docEpisode.Ref.ID
+			ep.Number, err = strconv.Atoi(docEpisode.Ref.ID)
+			if err != nil {
+				return err
+			}
 
 			//Get quality
 			iterQuality := c.Collection("Anime").
-					Doc(a.Id).
+					Doc(strconv.Itoa(a.Id)).
 					Collection("Languages").
 					Doc(docLanguage.Ref.ID).
 					Collection("Episodes").
-					Doc(ep.Number).
+					Doc(strconv.Itoa(ep.Number)).
 					Collection("Quality").
 					Documents(ctx)
 			defer iterQuality.Stop()
@@ -243,18 +291,18 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 					break
 				}
 				if err != nil {
-					return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+					return errors.New(fmt.Sprintf("Error to get episode languages with anime id %d: %s", a.Id, err.Error()))
 				}
 
 				fmt.Println("Quality:", docQuality.Ref.ID)
 
 				//Get servers
 				iterServers := c.Collection("Anime").
-						Doc(a.Id).
+						Doc(strconv.Itoa(a.Id)).
 						Collection("Languages").
 						Doc(docLanguage.Ref.ID).
 						Collection("Episodes").
-						Doc(ep.Number).
+						Doc(strconv.Itoa(ep.Number)).
 						Collection("Quality").
 						Doc(docQuality.Ref.ID).
 						Collection("Servers").
@@ -271,7 +319,7 @@ func (a *Anime) GetAnimeEpisodeDb(c *firestore.Client, ctx context.Context) erro
 							break
 						}
 						if err != nil {
-							return errors.New(fmt.Sprintf("Error to get episode languages with anime id %s: %s", a.Id, err.Error()))
+							return errors.New(fmt.Sprintf("Error to get episode languages with anime id %d: %s", a.Id, err.Error()))
 						}
 
 						err = docServers.DataTo(&stream)
@@ -314,13 +362,8 @@ func (a *Anime) AppendFile(filePath string) error {
 
 func (a *Anime) checkID() error {
 
-	if a.Id == "" {
+	if a.Id == 0 {
 		return errors.New("Id not setted")
-	}
-
-	_, err := strconv.Atoi(a.Id)
-	if err != nil {
-		return errors.New("Id not valid")
 	}
 
 	return nil

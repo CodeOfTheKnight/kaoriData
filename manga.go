@@ -13,8 +13,17 @@ type Manga struct {
 	Chapters []*Chapter
 }
 
-func NewManga() *Manga {
-	return &Manga{}
+type Chapter struct {
+	Number string
+	Title string
+	Pages []*Page
+}
+
+type Page struct {
+	Number string
+	Language string
+	Server string
+	Link string
 }
 
 func (m *Manga) SendToKaori(kaoriServer, token string) error {
@@ -40,15 +49,6 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 			mc := structs.Map(ch)
 			delete(mc, "Pages")
 
-			//Send language data
-			_, err := mangaDoc.Collection("Languages").
-				Doc(p.Language).Set(ctx, map[string]string{
-					"Fill": "hcbhdbchd",
-			}, firestore.MergeAll)
-			if err != nil {
-				return err
-			}
-
 			//Send chapters data
 			chapterDoc := mangaDoc.Collection("Languages").
 										Doc(p.Language).
@@ -65,14 +65,6 @@ func (m *Manga) SendToDatabase(c *firestore.Client, ctx context.Context) error {
 									Doc(p.Number).
 									Collection("Servers").
 									Doc(p.Server)
-
-			_, err = chapterDoc.Collection("Pages").
-				Doc(p.Number).Set(ctx, map[string]string{
-					"Fill": "hfsbv hdbhdb",
-			}, firestore.MergeAll)
-			if err != nil {
-				return err
-			}
 
 			_, err = pagesDoc.Set(ctx, map[string]string{
 				"Link": p.Link,

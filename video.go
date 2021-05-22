@@ -2,13 +2,17 @@ package kaoriData
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Video struct {
@@ -104,7 +108,7 @@ func (v *Video) checkLanguage() error {
 		return errors.New("Language not setted")
 	}
 
-	if v.Language != "SubIta" || v.Language != "Ita" {
+	if v.Language != "SubIta" && v.Language != "Ita" {
 		return errors.New("Language not valid. Only languages: \"SubIta\", \"Ita\" is valid")
 	}
 
@@ -155,5 +159,34 @@ func (v *Video) checkServer() error {
 		return errors.New("Server not setted")
 	}
 	return nil
+}
+
+func (v *Video) SendToDbRel(cl *sql.DB, episodeID int) (int, error) {
+
+	//Insert AnimeInfo
+	query := "INSERT INTO Video(Lingua, Width, Height, Bitrate, Durata, Fansub, Server, Link, EpisodeID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	ctx, cancelfunc := context.WithTimeout(context.Background(), 5 *time.Second)
+	defer cancelfunc()
+
+	stmt, err := cl.PrepareContext(ctx, query)
+	if err != nil {
+		log.Printf("Error %s when preparing SQL statement", err)
+		return -1, err
+	}
+	defer stmt.Close()
+
+	res, err := stmt.ExecContext(ctx, v.Language, v.Quality.Width, v.Quality.Height, v.StreamLink.Bitrate, v.StreamLink.Duration, v.StreamLink.Fansub, v.Server, v.StreamLink.Link, episodeID)
+	if err != nil {
+		log.Printf("Error %s when inserting row into products table", err)
+		return -1, err
+	}
+
+	prdID, err := res.LastInsertId()
+	if err != nil {
+		log.Printf("Error %s when getting last inserted product",     err)
+		return -1, err
+	}
+
+	return int(prdID), nil
 }
 
