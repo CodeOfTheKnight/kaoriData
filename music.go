@@ -5,9 +5,12 @@ import (
 	"cloud.google.com/go/firestore"
 	"errors"
 	"github.com/CodeOfTheKnight/Kaori/kaoriDatabase"
+	"github.com/CodeOfTheKnight/Kaori/kaoriUtils"
+	anilist "github.com/KiritoNya/anilist-go/query"
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -47,7 +50,7 @@ type Track struct {
 func (md *MusicData) CheckError() (err error) {
 
 	//Check IdAnilist
-	if !validateIdAnilist(md.IdAnilist, "anime") {
+	if !kaoriUtils.ValidateIdAnilist(md.IdAnilist, "anime") {
 		return errors.New("idAnilist not valid")
 	}
 
@@ -88,7 +91,7 @@ func (md *MusicData) CheckImage() (err error) {
 	switch strings.Split(md.Cover[5:], ";base64")[0] {
 	case "image/png":
 
-		md.imgCover, err = base64toPng(strings.Split(md.Cover, "base64,")[1])
+		md.imgCover, err = kaoriUtils.Base64toPng(strings.Split(md.Cover, "base64,")[1])
 		if err != nil {
 			return err
 		}
@@ -100,7 +103,7 @@ func (md *MusicData) CheckImage() (err error) {
 
 	case "image/jpeg":
 
-		md.imgCover, err = base64toJpg(strings.Split(md.Cover, "base64,")[1])
+		md.imgCover, err = kaoriUtils.Base64toJpg(strings.Split(md.Cover, "base64,")[1])
 		if err != nil {
 			return err
 		}
@@ -122,7 +125,7 @@ func (md *MusicData) CheckTrack() (err error) {
 	switch strings.Split(md.Track[5:], ";base64")[0] {
 	case "@file/mpeg":
 
-		md.track, err = base64toMp3(strings.Split(md.Track, "base64,")[1])
+		md.track, err = kaoriUtils.Base64toMp3(strings.Split(md.Track, "base64,")[1])
 		if err != nil {
 			return err
 		}
@@ -133,7 +136,7 @@ func (md *MusicData) CheckTrack() (err error) {
 		}
 
 	case "audio/mpeg":
-		md.track, err = base64toMp3(strings.Split(md.Track, "base64,")[1])
+		md.track, err = kaoriUtils.Base64toMp3(strings.Split(md.Track, "base64,")[1])
 		if err != nil {
 			return err
 		}
@@ -158,11 +161,11 @@ func (md *MusicData) GetNameAnime() {
 }
 
 //NormalizeName genera il nome del file audio.
-func (md *MusicData) NormalizeName() error {
+func (md *MusicData) NormalizeName(musicNameTemplate string, ) error {
 
 	var buf bytes.Buffer
 
-	musicName, err := os.ReadFile(cfg.Template.Music["file"])
+	musicName, err := os.ReadFile(musicNameTemplate)
 
 	if strings.ToLower(md.Type) == "ending" {
 		md.Type = "ED"
@@ -191,14 +194,14 @@ func (md *MusicData) NormalizeName() error {
 func (md *MusicData) UploadTemporaryFile() error {
 
 	//UploadCover
-	link, err := uploadLittleBox(md.imgCover, "cover.jpg")
+	link, err := kaoriUtils.UploadLittleBox(md.imgCover, "cover.jpg")
 	if err != nil {
 		return err
 	}
 	md.Cover = link
 
 	//UploadTrack
-	md.Track, err = uploadLittleBox(md.track, md.normalName+".mp3")
+	md.Track, err = kaoriUtils.UploadLittleBox(md.track, md.normalName+".mp3")
 	if err != nil {
 		return err
 	}
